@@ -145,7 +145,7 @@ class OpenAIService {
       const requestParams = {
         prompt: { 
           id: promptId,
-          version: "2"
+          version: "6"
         },
         input: input,
         text: {
@@ -220,13 +220,25 @@ class OpenAIService {
             } else {
               outputValue = { success: true, message: '[MODO PRUEBA] Transferencia a asesor simulada' };
             }
-          } else if (toolCall.name === 'set_servicio_reparacion_action') {
+          } else if (toolCall.name === 'send_asesor') {
             const action_id = args.action_id;
             console.log(`ID de acción para servicio de reparación: ${action_id}`);
             if (lead_id) {
               outputValue = await this.getInterest(action_id, lead_id);
             } else {
               outputValue = { success: true, message: '[MODO PRUEBA] Acción de servicio de reparación simulada' };
+            }
+          } else if (toolCall.name === 'save_form') {
+            const num_personas = args.num_personas;
+            const tour_seleccionado = args.tour_seleccionado;
+            const idioma = args.idioma;
+            const pais_origen = args.pais_origen;
+            const tipo_cliente = args.tipo_cliente;
+            console.log(`Guardando formulario con: ${num_personas}, ${tour_seleccionado}, ${idioma}, ${pais_origen}, ${tipo_cliente}`);
+            if (lead_id) {
+              outputValue = await this.saveFormToKommo(lead_id, num_personas, tour_seleccionado, idioma, pais_origen, tipo_cliente);
+            } else {
+              outputValue = { success: false, message: '[MODO PRUEBA] Formulario guardado simuladamente' };
             }
           }
 
@@ -398,6 +410,40 @@ class OpenAIService {
     
     return whatsappText;
   }
+  async saveFormToKommo(lead_id, num_personas, tour_seleccionado, idioma, pais_origen, tipo_cliente) {
+    try {
+      const token = await this.getToken();
+      const options = {
+        method: 'PATCH',
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/json',
+          authorization: 'Bearer ' + token
+        },
+        body: JSON.stringify([{
+          id: Number(lead_id),
+          custom_fields_values: [
+            { field_id: 955674, values: [{ value: num_personas }] }, // numero
+            { field_id: 955676, values: [{ value: tour_seleccionado }] }, // string
+            { field_id: 955678, values: [{ value: idioma }] }, // string
+            { field_id: 955680, values: [{ value: pais_origen }] }, //string
+            { field_id: 955682, values: [{ value: tipo_cliente }] } //select
+          ]
+        }])
+      };
+      const subdominio = process.env.SUBDOMINIO;
+      const response = await this.fetchWithTokenRetry(`https://${subdominio}.kommo.com/api/v4/leads`, options);
+      
+      if (!response.ok) {
+        console.error(`HTTP error! status: ${response.status}`);
+        return { success: false, message: 'Error al guardar el formulario en Kommo.' };
+      }
+      return { success: true, message: 'Formulario guardado en Kommo correctamente.' };
+    } catch (err) {
+      console.error("Error en la solicitud:", err);
+      return { success: false, message: 'Error técnico al guardar el formulario en Kommo.' };
+    }
+  }
 
   async postAppScriptAndKommo(action_id, customer_message, lead_id) {
     try {
@@ -548,7 +594,7 @@ class OpenAIService {
   
       const subdominio = process.env.SUBDOMINIO;
       console.log('subdominio:', subdominio); // Log para depuración
-      const response_get = await this.fetchWithTokenRetry(`https://${subdominio}.kommo.com/api/v4/leads/${idLead}`, optionsGetLead);
+      const response_get = await this.fetchWithTokenRetry(`https://${subdominio}.kommo.com/api/v4/leads/${idLead}?with=contacts`, optionsGetLead);
       console.log('response_get status:', response_get.status); // Log para depuración
       const responseBody = await response_get.json();
       console.log('responseBody:', responseBody); // Log para depuración
@@ -557,11 +603,38 @@ class OpenAIService {
         throw new Error('custom_fields_values no encontrado en la respuesta');
       }
 
+      // Obtener el teléfono del contacto embebido en el lead
+      let phoneNumber = null;
+      let isPanama = false;
+      
+      const contact = responseBody._embedded?.contacts?.[0];
+      console.log('contact:', contact); // Log para depuración
+      
+      if (contact && contact.custom_fields_values) {
+        // Buscar el campo de teléfono
+        const phoneField = contact.custom_fields_values.find((obj) => obj.field_code === 'PHONE');
+        if (phoneField && phoneField.values && phoneField.values.length > 0) {
+          phoneNumber = phoneField.values[0].value;
+          console.log('Número de teléfono:', phoneNumber); // Log para depuración
+          
+          // Verificar si el número es de Panamá (+507)
+          const cleanedPhone = phoneNumber.replace(/\s+/g, '');
+          isPanama = cleanedPhone.startsWith('+507') || cleanedPhone.startsWith('507');
+          console.log('¿Es de Panamá?:', isPanama); // Log para depuración
+        }
+      }
+
       // mensaje del cliente
       const msj_client = responseBody.custom_fields_values.find((obj) => obj.field_id === 955672);
       console.log('msj_client:', msj_client); // Log para depuración
       let msj_client_value = msj_client?.values?.[0]?.value;
-    
+      
+      // Agregar información de origen al mensaje
+      if (msj_client_value && isPanama !== null) {
+        const origen = isPanama ? "Usuario de Panamá" : "Usuario internacional";
+        msj_client_value = `[${origen}] ${msj_client_value}`;
+        console.log('Mensaje enriquecido con información de origen:', msj_client_value);
+      }
             
       console.log('msj_client_value:', msj_client_value); // Log para depuración
   
