@@ -145,7 +145,7 @@ class OpenAIService {
       const requestParams = {
         prompt: { 
           id: promptId,
-          version: "6"
+          version: "8"
         },
         input: input,
         text: {
@@ -423,11 +423,11 @@ class OpenAIService {
         body: JSON.stringify([{
           id: Number(lead_id),
           custom_fields_values: [
-            { field_id: 955674, values: [{ value: num_personas }] }, // numero
-            { field_id: 955676, values: [{ value: tour_seleccionado }] }, // string
-            { field_id: 955678, values: [{ value: idioma }] }, // string
-            { field_id: 955680, values: [{ value: pais_origen }] }, //string
-            { field_id: 955682, values: [{ value: tipo_cliente }] } //select
+            { field_id: 956366, values: [{ value: num_personas }] }, // numero
+            { field_id: 956368, values: [{ value: tour_seleccionado }] }, // string
+            { field_id: 956370, values: [{ value: idioma }] }, // string
+            { field_id: 956372, values: [{ value: pais_origen }] }, //string
+            { field_id: 956374, values: [{ value: tipo_cliente }] } //select
           ]
         }])
       };
