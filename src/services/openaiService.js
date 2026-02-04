@@ -536,7 +536,7 @@ class OpenAIService {
       },
       body: JSON.stringify([{
         id: Number(lead_id),
-        status_id: 97856616, // Cambiar al estado "En atención"
+        status_id: 93482387, // Cambiar al estado "En atención"
         custom_fields_values: [
           { field_id: 955670, values: [{ value: action_id }] }
         ]
