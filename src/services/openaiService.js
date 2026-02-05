@@ -312,7 +312,7 @@ class OpenAIService {
         const followUpRequestParams = {
           prompt: { 
             id: promptId,
-            version: "18"
+            version: "21"
           },
           input: toolOutputItems,
           previous_response_id: currentResponse.id,
@@ -493,12 +493,14 @@ class OpenAIService {
         },
         body: JSON.stringify([{
           id: Number(lead_id),
+          status_id: 93482387,
           custom_fields_values: [
             { field_id: 956366, values: [{ value: num_personas }] }, // numero
             { field_id: 956368, values: [{ value: tour_seleccionado }] }, // string
             { field_id: 956370, values: [{ value: idioma }] }, // string
             { field_id: 956372, values: [{ value: pais_origen }] }, //string
-            { field_id: 956374, values: [{ value: tipo_cliente }] } //select
+            { field_id: 956374, values: [{ value: tipo_cliente }] }, //select
+            { field_id: 955670, values: [{ value: "ASESOR" }] }
           ]
         }])
       };
