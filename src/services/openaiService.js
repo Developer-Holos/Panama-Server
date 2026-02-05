@@ -145,7 +145,7 @@ class OpenAIService {
       const requestParams = {
         prompt: { 
           id: promptId,
-          version: "21"
+          version: "22"
         },
         input: input,
         text: {
@@ -312,7 +312,7 @@ class OpenAIService {
         const followUpRequestParams = {
           prompt: { 
             id: promptId,
-            version: "21"
+            version: "22"
           },
           input: toolOutputItems,
           previous_response_id: currentResponse.id,
@@ -480,6 +480,46 @@ class OpenAIService {
     whatsappText = whatsappText.replace(/^- (.*$)/gim, '- $1');
     
     return whatsappText;
+  }
+
+  // Detectar idioma del mensaje usando IA (Español vs Inglés/Otro)
+  async detectLanguage(text) {
+    if (!text) return 'Desconocido';
+    
+    try {
+      // Usar un modelo ligero y rápido para la detección de idioma
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "Eres un detector de idioma. Responde ÚNICAMENTE con 'Español' si el mensaje está en español, o 'Inglés' si está en cualquier otro idioma. No agregues explicaciones ni puntuación."
+          },
+          {
+            role: "user",
+            content: text
+          }
+        ],
+        temperature: 0,
+        max_tokens: 10
+      });
+      
+      const detectedLanguage = completion.choices[0].message.content.trim();
+      console.log('Idioma detectado por IA:', detectedLanguage);
+      
+      // Validar que la respuesta sea la esperada
+      if (detectedLanguage === 'Español' || detectedLanguage === 'Inglés') {
+        return detectedLanguage;
+      }
+      
+      // Fallback: si la respuesta no es la esperada, usar detección simple
+      return text.match(/[áéíóúüñ¿¡]/i) ? 'Español' : 'Inglés';
+      
+    } catch (error) {
+      console.error('Error detectando idioma con IA:', error);
+      // Fallback: detección simple basada en caracteres especiales
+      return text.match(/[áéíóúüñ¿¡]/i) ? 'Español' : 'Inglés';
+    }
   }
   async saveFormToKommo(lead_id, num_personas, tour_seleccionado, idioma, pais_origen, tipo_cliente) {
     try {
@@ -714,11 +754,12 @@ class OpenAIService {
         hour12: false
       });
       
-      // Agregar información de origen y fecha/hora al mensaje
+      // Detectar idioma y agregar información de origen, idioma y fecha/hora al mensaje
       if (msj_client_value) {
         const origen = isPanama !== null ? (isPanama ? "Usuario de Panamá" : "Usuario internacional") : "Usuario";
-        msj_client_value = `[${origen} - ${panamaTime}] ${msj_client_value}`;
-        console.log('Mensaje enriquecido con información de origen y fecha/hora:', msj_client_value);
+        const idioma = await this.detectLanguage(msj_client_value);
+        msj_client_value = `[${origen} - ${idioma} - ${panamaTime}] ${msj_client_value}`;
+        console.log('Mensaje enriquecido con información de origen, idioma y fecha/hora:', msj_client_value);
       }
             
       console.log('msj_client_value:', msj_client_value); // Log para depuración
