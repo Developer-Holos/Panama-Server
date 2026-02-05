@@ -145,7 +145,7 @@ class OpenAIService {
       const requestParams = {
         prompt: { 
           id: promptId,
-          version: "19"
+          version: "20"
         },
         input: input,
         text: {
@@ -175,8 +175,9 @@ class OpenAIService {
         
         // Capturar tool calls cuando se completa un output item
         if (event.type === 'response.output_item.done' && event.item) {
+          console.log('Item completado - tipo:', event.item.type);
           if (event.item.type === 'function_call') {
-            console.log('ToolCall detectado:', event.item.name);
+            console.log('ToolCall detectado en stream:', event.item.name, 'ID:', event.item.call_id);
             needsToolHandling = true;
             toolCallItems.push(event.item);
           }
@@ -189,14 +190,39 @@ class OpenAIService {
         }
       }
 
+      // Verificación adicional: revisar la respuesta completa por si hay tool calls que no capturamos
+      if (currentResponse && currentResponse.output) {
+        const functionCallsInResponse = currentResponse.output.filter(item => item.type === 'function_call');
+        if (functionCallsInResponse.length > 0) {
+          console.log(`Verificación: ${functionCallsInResponse.length} function_call(s) encontrados en la respuesta completa`);
+          
+          // Si encontramos más tool calls de los que capturamos, agregarlos
+          if (functionCallsInResponse.length > toolCallItems.length) {
+            console.warn(`⚠️ Se encontraron ${functionCallsInResponse.length} tool calls en la respuesta pero solo se capturaron ${toolCallItems.length} durante el stream`);
+            
+            // Agregar los que faltan
+            for (const fc of functionCallsInResponse) {
+              const exists = toolCallItems.some(tc => tc.call_id === fc.call_id);
+              if (!exists) {
+                console.log(`Agregando tool call faltante: ${fc.name} (ID: ${fc.call_id})`);
+                toolCallItems.push(fc);
+                needsToolHandling = true;
+              }
+            }
+          }
+        }
+      }
+
       // Si hay tool calls que manejar, procesarlos
       if (needsToolHandling && toolCallItems.length > 0) {
         console.log(`Procesando ${toolCallItems.length} tool call(s)...`);
+        console.log('IDs de tool calls detectados:', toolCallItems.map(tc => `${tc.name}:${tc.call_id}`).join(', '));
         const toolOutputItems = [];
 
         for (const toolCall of toolCallItems) {
           const args = JSON.parse(toolCall.arguments);
           console.log("ToolCall detectado:", toolCall.name);
+          console.log("Call ID:", toolCall.call_id);
           console.log("Argumentos procesados:", args);
 
           let outputValue = null;
@@ -239,6 +265,24 @@ class OpenAIService {
             } else {
               outputValue = { success: false, message: '[MODO PRUEBA] Formulario guardado simuladamente' };
             }
+          } else {
+            // Manejo de tool calls desconocidos
+            console.error(`⚠️ Tool call desconocido: ${toolCall.name}. Esto puede causar errores.`);
+            outputValue = { 
+              success: false, 
+              message: `Función ${toolCall.name} no está implementada en el servidor`,
+              error: 'unknown_function'
+            };
+          }
+
+          // Validar que outputValue no sea null antes de crear el output
+          if (outputValue === null) {
+            console.error(`⚠️ outputValue es null para el tool call: ${toolCall.name} (ID: ${toolCall.call_id})`);
+            outputValue = {
+              success: false,
+              message: 'Error interno: no se pudo procesar la función',
+              error: 'null_output'
+            };
           }
 
           // Agregar el output del tool call
@@ -250,6 +294,14 @@ class OpenAIService {
           console.log('Tool output creado:', toolOutput);
           toolOutputItems.push(toolOutput);
         }
+
+        // Validar que tenemos outputs para todos los tool calls
+        if (toolOutputItems.length !== toolCallItems.length) {
+          console.error(`⚠️ Desajuste de tool outputs: se esperaban ${toolCallItems.length} pero se generaron ${toolOutputItems.length}`);
+          throw new Error(`Error interno: no se generaron outputs para todos los tool calls (esperados: ${toolCallItems.length}, generados: ${toolOutputItems.length})`);
+        }
+
+        console.log(`✓ ${toolOutputItems.length} tool outputs generados correctamente`);
 
         // Verificar que tenemos una respuesta válida antes de continuar
         if (!currentResponse || !currentResponse.id) {
