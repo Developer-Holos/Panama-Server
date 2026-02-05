@@ -629,11 +629,23 @@ class OpenAIService {
       console.log('msj_client:', msj_client); // Log para depuración
       let msj_client_value = msj_client?.values?.[0]?.value;
       
-      // Agregar información de origen al mensaje
-      if (msj_client_value && isPanama !== null) {
-        const origen = isPanama ? "Usuario de Panamá" : "Usuario internacional";
-        msj_client_value = `[${origen}] ${msj_client_value}`;
-        console.log('Mensaje enriquecido con información de origen:', msj_client_value);
+      // Obtener fecha y hora de Panamá
+      const panamaTime = new Date().toLocaleString('es-PA', {
+        timeZone: 'America/Panama',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+      
+      // Agregar información de origen y fecha/hora al mensaje
+      if (msj_client_value) {
+        const origen = isPanama !== null ? (isPanama ? "Usuario de Panamá" : "Usuario internacional") : "Usuario";
+        msj_client_value = `[${origen} - ${panamaTime}] ${msj_client_value}`;
+        console.log('Mensaje enriquecido con información de origen y fecha/hora:', msj_client_value);
       }
             
       console.log('msj_client_value:', msj_client_value); // Log para depuración
