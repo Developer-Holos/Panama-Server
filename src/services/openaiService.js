@@ -173,26 +173,25 @@ class OpenAIService {
       for await (const event of stream) {
         console.log('Evento recibido:', event.type); // Debug: mostrar tipo de evento
         
-        // Guardar la respuesta completa cuando termine
-        // Intentar múltiples tipos de eventos
-        if (event.type === 'response.done' || event.type === 'done' || event.response) {
-          currentResponse = event.response || event;
-          console.log('Respuesta completa recibida:', JSON.stringify(currentResponse).substring(0, 200));
-          
-          // Buscar tool calls en los output items
-          if (currentResponse.output) {
-            for (const item of currentResponse.output) {
-              if (item.type === 'function_call') {
-                needsToolHandling = true;
-                toolCallItems.push(item);
-              }
-            }
+        // Capturar tool calls cuando se completa un output item
+        if (event.type === 'response.output_item.done' && event.item) {
+          if (event.item.type === 'function_call') {
+            console.log('ToolCall detectado:', event.item.name);
+            needsToolHandling = true;
+            toolCallItems.push(event.item);
           }
+        }
+        
+        // Guardar la respuesta completa cuando termine
+        if (event.type === 'response.completed' && event.response) {
+          currentResponse = event.response;
+          console.log('Respuesta completa recibida:', JSON.stringify(currentResponse).substring(0, 200));
         }
       }
 
       // Si hay tool calls que manejar, procesarlos
       if (needsToolHandling && toolCallItems.length > 0) {
+        console.log(`Procesando ${toolCallItems.length} tool call(s)...`);
         const toolOutputItems = [];
 
         for (const toolCall of toolCallItems) {
@@ -243,22 +242,42 @@ class OpenAIService {
           }
 
           // Agregar el output del tool call
-          toolOutputItems.push({
+          const toolOutput = {
             type: 'function_call_output',
             call_id: toolCall.call_id,
             output: JSON.stringify(outputValue)
-          });
+          };
+          console.log('Tool output creado:', toolOutput);
+          toolOutputItems.push(toolOutput);
+        }
+
+        // Verificar que tenemos una respuesta válida antes de continuar
+        if (!currentResponse || !currentResponse.id) {
+          throw new Error("No se recibió una respuesta válida para continuar con tool outputs");
         }
 
         // Crear una nueva respuesta con los tool outputs
         const followUpRequestParams = {
-          prompt: { id: promptId },
+          prompt: { 
+            id: promptId,
+            version: "18"
+          },
           input: toolOutputItems,
           previous_response_id: currentResponse.id,
+          text: {
+            format: {
+              type: "text"
+            }
+          },
+          max_output_tokens: 2048,
           store: true
         };
 
+        console.log('Enviando follow-up response con tool outputs...');
+        console.log('Parámetros:', JSON.stringify(followUpRequestParams, null, 2));
+        
         const followUpResponse = await this.openai.responses.create(followUpRequestParams);
+        console.log('Follow-up response recibida:', JSON.stringify(followUpResponse).substring(0, 200));
 
         // Actualizar contexto de la conversación
         if (conversationId) {
