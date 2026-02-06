@@ -533,7 +533,6 @@ class OpenAIService {
         },
         body: JSON.stringify([{
           id: Number(lead_id),
-          status_id: 93482387,
           custom_fields_values: [
             { field_id: 956366, values: [{ value: num_personas }] }, // numero
             { field_id: 956368, values: [{ value: tour_seleccionado }] }, // string
