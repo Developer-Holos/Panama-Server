@@ -145,7 +145,7 @@ class OpenAIService {
       const requestParams = {
         prompt: { 
           id: promptId,
-          version: "23"
+          version: "24"
         },
         input: input,
         text: {
@@ -320,7 +320,7 @@ class OpenAIService {
         const followUpRequestParams = {
           prompt: { 
             id: promptId,
-            version: "23"
+            version: "24"
           },
           input: toolOutputItems,
           previous_response_id: currentResponse.id,
@@ -547,7 +547,6 @@ class OpenAIService {
             { field_id: 956370, values: [{ value: idioma }] }, // string
             { field_id: 956372, values: [{ value: pais_origen }] }, //string
             { field_id: 956374, values: [{ value: tipo_cliente }] }, //select
-            { field_id: 955670, values: [{ value: "ASESOR" }] }
           ]
         }])
       };
