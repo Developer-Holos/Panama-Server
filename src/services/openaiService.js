@@ -145,7 +145,7 @@ class OpenAIService {
       const requestParams = {
         prompt: { 
           id: promptId,
-          version: "22"
+          version: "23"
         },
         input: input,
         text: {
@@ -265,6 +265,14 @@ class OpenAIService {
             } else {
               outputValue = { success: false, message: '[MODO PRUEBA] Formulario guardado simuladamente' };
             }
+          } else if (toolCall.name === 'check_in') {
+            const confirm = args.confirm;
+            console.log(`Check-in recibido: ${confirm}`);
+            if (lead_id) {
+              outputValue = await this.checkin("CHECK_IN", lead_id);
+            } else {
+              outputValue = { success: true, message: '[MODO PRUEBA] Check-in simulado' };
+          }
           } else {
             // Manejo de tool calls desconocidos
             console.error(`⚠️ Tool call desconocido: ${toolCall.name}. Esto puede causar errores.`);
@@ -312,7 +320,7 @@ class OpenAIService {
         const followUpRequestParams = {
           prompt: { 
             id: promptId,
-            version: "22"
+            version: "23"
           },
           input: toolOutputItems,
           previous_response_id: currentResponse.id,
@@ -629,6 +637,49 @@ class OpenAIService {
       return { success: false, error: 'Error técnico. Te transferimos a un asesor.' };
     }
   }
+
+    // Enviar el valor de la call fuction para cambiar a un asesor
+  async checkin(action_id, lead_id) {
+    // Asegurarse de que el token es válido antes de realizar la solicitud
+    await authenticate();
+  
+    console.log('action_id:', action_id); // Log para depuración
+    console.log('lead_id:', lead_id); // Log para depuración
+  
+    const token = await this.getToken();
+    const options = {
+      method: 'PATCH',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        authorization: 'Bearer ' + token
+      },
+      body: JSON.stringify([{
+        id: Number(lead_id),
+        status_id: 94658115, // Cambiar al estado "En atención"
+        custom_fields_values: [
+          { field_id: 955670, values: [{ value: action_id }] }
+        ]
+      }])
+    };
+  
+    try {
+      const subdominio = process.env.SUBDOMINIO;
+      const response = await this.fetchWithTokenRetry(`https://${subdominio}.kommo.com/api/v4/leads`, options);
+      console.log('response status:', response.status); // Log para depuración
+      const responseBody = await response.json();
+      console.log('responseBody:', responseBody); // Log para depuración
+  
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return { success: true, message: 'Se actualizó el lead' };
+    } catch (err) {
+      console.error("Error en la solicitud:", err);
+      return { success: false, message: 'Error al actualizar el lead' };
+    }
+  }
+  
 
   // Enviar el valor de la call fuction para cambiar a un asesor
   async getInterest(action_id, lead_id) {
