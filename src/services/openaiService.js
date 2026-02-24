@@ -145,7 +145,7 @@ class OpenAIService {
       const requestParams = {
         prompt: { 
           id: promptId,
-          version: "24"
+          version: "25"
         },
         input: input,
         text: {
@@ -320,7 +320,7 @@ class OpenAIService {
         const followUpRequestParams = {
           prompt: { 
             id: promptId,
-            version: "24"
+            version: "25"
           },
           input: toolOutputItems,
           previous_response_id: currentResponse.id,
@@ -351,7 +351,19 @@ class OpenAIService {
         }
 
         // Extraer y retornar el texto de la respuesta final
-        return this.extractTextFromResponse(followUpResponse);
+        const followUpText = this.extractTextFromResponse(followUpResponse);
+
+        // Si el mensaje contiene enlace de reserva, transferir a asesor
+        if (lead_id && (followUpText.includes('Aquí está el enlace para reservar') || followUpText.includes("Here's the link to book"))) {
+          console.log('Enlace de reserva detectado en respuesta, transfiriendo a asesor...');
+          try {
+            await this.getInterest("ASESOR", lead_id);
+          } catch (err) {
+            console.error('Error al transferir a asesor tras enlace de reserva:', err);
+          }
+        }
+
+        return followUpText;
       }
 
       // Si no hay tool calls, retornar el texto directamente
@@ -367,7 +379,19 @@ class OpenAIService {
           });
         }
 
-        return this.extractTextFromResponse(currentResponse);
+        const responseText = this.extractTextFromResponse(currentResponse);
+
+        // Si el mensaje contiene enlace de reserva, transferir a asesor
+        if (lead_id && (responseText.includes('Aquí está el enlace para reservar') || responseText.includes("Here's the link to book"))) {
+          console.log('Enlace de reserva detectado en respuesta, transfiriendo a asesor...');
+          try {
+            await this.getInterest("ASESOR", lead_id);
+          } catch (err) {
+            console.error('Error al transferir a asesor tras enlace de reserva:', err);
+          }
+        }
+
+        return responseText;
       }
 
       throw new Error("No se recibió respuesta del modelo");
