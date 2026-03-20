@@ -73,7 +73,7 @@ class OpenAIService {
           console.error("Error en la transferencia a asesor:", fallbackError);
         }
       }
-      return "Lo siento, estoy teniendo problemas técnicos. " + (lead_id ? "Te estoy transfiriendo a un asesor humano que te atenderá a la brevedad." : "Por favor, revisa la configuración del servidor.");
+      return "Gracias por tu interes!" + (lead_id ? "Te estoy transfiriendo a un asesor experto que te atenderá a la brevedad." : "Por favor, revisa la configuración del servidor.");
     }
   }
 
@@ -402,7 +402,8 @@ class OpenAIService {
       if (lead_id) {
         try {
           await this.getInterest("ASESOR", lead_id);
-          return "Lo siento, estoy teniendo problemas para procesar la solicitud. Te estoy transfiriendo a un asesor humano que te atenderá a la brevedad.";
+          console.error("Error en la transferencia a usuario asesor:", fallbackError);
+          return "Gracias por ponerte en contacto con nosotros!. Te estoy transfiriendo a un asesor experto que te atenderá a la brevedad.";
         } catch (fallbackError) {
           console.error("Error en la transferencia a asesor:", fallbackError);
           return "Lo siento, estoy teniendo problemas técnicos. Por favor, intenta nuevamente más tarde o contacta directamente a un asesor.";
