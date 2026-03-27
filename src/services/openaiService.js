@@ -145,7 +145,7 @@ class OpenAIService {
       const requestParams = {
         prompt: { 
           id: promptId,
-          version: "40"
+          version: "41"
         },
         input: input,
         text: {
@@ -320,7 +320,7 @@ class OpenAIService {
         const followUpRequestParams = {
           prompt: { 
             id: promptId,
-            version: "40"
+            version: "41"
           },
           input: toolOutputItems,
           previous_response_id: currentResponse.id,
