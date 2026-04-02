@@ -45,19 +45,19 @@ class OpenAIController {
         return res.status(400).json({ message: 'Datos de solicitud inválidos' });
       }
 
+      // Responder 200 inmediatamente para evitar reintentos de Kommo
+      res.status(200).json({ ok: true });
+
+      // Procesar de forma asíncrona sin bloquear la respuesta
       const { msj_client, lead_id, conversation_id } = requestData;
+      const conversationId = conversation_id || await this.openAIService.createdConversation();
+      await this.openAIService.main(msj_client, conversationId, lead_id, assistantId);
 
-      // Crear una nueva conversación si no se proporciona una
-      let conversationId = conversation_id || await this.openAIService.createdConversation();
-
-      // Procesar el mensaje y obtener la respuesta de OpenAI
-      const responseAI = await this.openAIService.main(msj_client, conversationId, lead_id, assistantId);
-
-      // Enviar la respuesta al cliente
-      res.status(200).json({ msj: responseAI, conversation_id: conversationId });
     } catch (error) {
       console.error("Error en handleBaseIA:", error);
-      res.status(500).json({ message: 'Error al procesar la solicitud' });
+      if (!res.headersSent) {
+        res.status(500).json({ message: 'Error al procesar la solicitud' });
+      }
     }
   }
 
