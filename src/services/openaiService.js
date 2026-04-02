@@ -783,7 +783,11 @@ class OpenAIService {
       console.log('subdominio:', subdominio); // Log para depuración
       const response_get = await this.fetchWithTokenRetry(`https://${subdominio}.kommo.com/api/v4/leads/${idLead}?with=contacts`, optionsGetLead);
       console.log('response_get status:', response_get.status); // Log para depuración
-      const responseBody = await response_get.json();
+      const responseText = await response_get.text();
+      if (!responseText || !responseText.trim()) {
+        throw new Error(`Kommo devolvió respuesta vacía (status ${response_get.status}) para lead ${idLead}`);
+      }
+      const responseBody = JSON.parse(responseText);
       console.log('responseBody:', responseBody); // Log para depuración
   
       if (!responseBody.custom_fields_values) {
