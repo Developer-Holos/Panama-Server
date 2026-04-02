@@ -40,18 +40,25 @@ class OpenAIController {
    */
   async handleBaseIA(req, res, assistantId) {
     try {
-      const requestData = await this.openAIService.processRequestData(req);
-      if (!requestData) {
-        return res.status(400).json({ message: 'Datos de solicitud inválidos' });
-      }
-
       // Responder 200 inmediatamente para evitar reintentos de Kommo
       res.status(200).json({ ok: true });
 
       // Procesar de forma asíncrona sin bloquear la respuesta
-      const { msj_client, lead_id, conversation_id } = requestData;
-      const conversationId = conversation_id || await this.openAIService.createdConversation();
-      await this.openAIService.main(msj_client, conversationId, lead_id, assistantId);
+      setImmediate(async () => {
+        try {
+          const requestData = await this.openAIService.processRequestData(req);
+          if (!requestData) {
+            console.warn('Datos de solicitud inválidos en handleBaseIA');
+            return;
+          }
+
+          const { msj_client, lead_id, conversation_id } = requestData;
+          const conversationId = conversation_id || await this.openAIService.createdConversation();
+          await this.openAIService.main(msj_client, conversationId, lead_id, assistantId);
+        } catch (asyncError) {
+          console.error('Error asíncrono en handleBaseIA:', asyncError);
+        }
+      });
 
     } catch (error) {
       console.error("Error en handleBaseIA:", error);
